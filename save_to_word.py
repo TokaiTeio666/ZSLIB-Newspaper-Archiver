@@ -19,6 +19,15 @@ def save_to_separate_word(name, info, detail_url, driver,row_index, output_dir):
         # 这里的裁剪逻辑基于您提供的 capture.py
         cropped_image = capture(detail_url, driver)
 
+        try:
+            # 定位 class 为 des 的 div 元素
+            des_element = driver.find_element(By.CLASS_NAME, "des")
+            # 获取该元素下所有的可见文本
+            full_description = des_element.text
+        except Exception as e:
+            full_description = "未能提取到详细描述内容"
+            print(f"提取文字失败: {e}")
+
         # 3. 创建新文档并写入文本信息
         doc = Document()
         date_parts = info.split()
@@ -31,9 +40,10 @@ def save_to_separate_word(name, info, detail_url, driver,row_index, output_dir):
             doc.add_paragraph(f"{month}月")
             doc.add_paragraph(f"{day}日")
 
-            # 4. 将 PIL 图像对象转换为字节流插入文档，无需保存临时文件
+            # 4. 将 PIL 图像对象转换为字节流插入文档
             img_byte_arr = io.BytesIO()
             cropped_image.save(img_byte_arr, format='PNG')
+            doc.add_paragraph(full_description)
             doc.add_picture(img_byte_arr, width=Inches(5))
 
             # 5. 写入来源标注
