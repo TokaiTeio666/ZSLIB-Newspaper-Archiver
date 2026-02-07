@@ -122,12 +122,13 @@ while True:
         page_num += 1
 
         # 等待新页面加载（iframe 内容刷新）
-        time.sleep(5)
+        time.sleep(3)
     except Exception as e:
         print(f"翻页过程中出错或已无下一页: {e}")
         break
 print("所有采集任务已完成。")
 driver.quit()
+
 
 
 
