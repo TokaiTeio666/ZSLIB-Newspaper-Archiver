@@ -21,9 +21,9 @@ def save_to_separate_word(name, info, detail_url, driver,row_index, output_dir):
 
         try:
             # 定位 class 为 des 的 div 元素
-            des_element = driver.find_element(By.CLASS_NAME, "des")
+            des_elements = driver.find_elements(By.CSS_SELECTOR, ".des > div")[0]
             # 获取该元素下所有的可见文本
-            full_description = des_element.text
+            full_description = des_elements.text
         except Exception as e:
             full_description = "未能提取到详细描述内容"
             print(f"提取文字失败: {e}")
