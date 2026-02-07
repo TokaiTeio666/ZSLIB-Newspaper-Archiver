@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 from save_to_word import save_to_separate_word
 import os
+import re
 
 output_dir = "采集结果"
 # 如果文件夹不存在则创建
@@ -63,7 +64,6 @@ data_list = []
 page_num = 1
 while True:
     print(f"正在处理第 {page_num} 页...")
-
     # 1. 确保进入结果列表所在的 iframe
     driver.switch_to.default_content()
     try:
@@ -101,19 +101,28 @@ while True:
         next_button = driver.find_element(By.ID, "btnNext")
 
         # 判断是否已到末页：检查按钮是否包含特定的禁用类名或属性
-        # 根据 image_656905.jpg，可以检查当前页码是否等于总页码
-        page_info = driver.find_element(By.CLASS_NAME, "pagin").text
-        # 假设 page_info 类似 "当前 48/48 页"
-        if "48/48" in page_info:
-            print("已处理完所有页面（共 48 页），任务结束。")
-            break
+        page_info = driver.find_element(By.CLASS_NAME, "pagin")
+        page_text = page_info.text
+        match = re.search(r"(\d+)/(\d+)", page_text)
+        if match:
+            current_p = int(match.group(1))
+            total_p = int(match.group(2))
+
+            print(f"页码状态: {current_p} / {total_p}")
+
+            if current_p >= total_p:
+                print("🎉 已成功采集到最后一页，任务圆满结束。")
+                break
+        else:
+            # 如果没找到正则匹配，备选方案：检查按钮状态
+            print("未提取到页码数值，尝试检查按钮...")
 
         # 点击下一页
         next_button.click()
         page_num += 1
 
         # 等待新页面加载（iframe 内容刷新）
-        time.sleep(5)
+        time.sleep(3)
     except Exception as e:
         print(f"翻页过程中出错或已无下一页: {e}")
         break
