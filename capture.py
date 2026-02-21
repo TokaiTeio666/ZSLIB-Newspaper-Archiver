@@ -22,22 +22,32 @@ def capture(url,driver):
     # 1. 启动浏览器
     driver.get(url)
     driver.implicitly_wait(10)
+    time.sleep(3)
     try:
         driver.switch_to.frame("frame1")
     except:
         print("未发现详情页 iframe，尝试直接定位...")
     # 2. 获取网页上的元素（红框和底图容器）
-    # 注意：这里我们取 imgp 的宽度，它是 Canvas 渲染的基础参考宽度
-    time.sleep(3) # 等待渲染
+    display_width = 0
+    start_time = time.time()
+    while display_width <= 0 and (time.time() - start_time) < 10:  # 最多等10秒
+        try:
+            driver.switch_to.default_content()
+            driver.switch_to.frame("frame1")
+            img_p = driver.find_element(By.CLASS_NAME, "imgp")
+            display_width = img_p.size['width']
+        except:
+            pass
+    if display_width <= 0:
+        raise Exception("无法获取网页图片宽度，加载超时")
+
     linebox = driver.find_element(By.CLASS_NAME, "linebox")
-    img_display_element = driver.find_element(By.CLASS_NAME, "imgp")
+    img_p = driver.find_element(By.CLASS_NAME, "imgp")
 
-    # 获取网页显示的尺寸
-    display_width = img_display_element.size['width']
-    box_loc = linebox.location
-    box_size = linebox.size
-    img_container_loc = img_display_element.location
-
+    left_px = float(linebox.value_of_css_property('left').replace('px', ''))
+    top_px = float(linebox.value_of_css_property('top').replace('px', ''))
+    # 获取网页显示的图片宽度
+    display_width = img_p.size['width']
     # 3. 获取高清原图 URL
     img_url =get_hd_url(driver)
     response = requests.get(img_url)
@@ -49,12 +59,12 @@ def capture(url,driver):
     print(f"检测到原图分辨率: {origin_img.width}x{origin_img.height}")
     print(f"网页显示宽度: {display_width}, 自动计算比例为: {scale:.4f}")
 
-    # 5. 计算原图上的裁剪坐标
-    # 逻辑：(红框坐标 - 容器坐标) * 比例
-    real_left = (box_loc['x'] - img_container_loc['x']) * scale
-    real_top = (box_loc['y'] - img_container_loc['y']) * scale
-    real_width = box_size['width'] * scale
-    real_height = box_size['height'] * scale
+    # 5. 计算原图上的裁剪坐标 (使用相对位移 * 比例)
+    # 为了防止截图不全，我们稍微给 2-5 像素的 buffer
+    real_left = left_px * scale
+    real_top = top_px * scale
+    real_width = linebox.size['width'] * scale
+    real_height = linebox.size['height'] * scale
 
     # 6. 裁剪并保存
     crop_img = origin_img.crop((real_left, real_top, real_left + real_width, real_top + real_height))
