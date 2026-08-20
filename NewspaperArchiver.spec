@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('capture.py', '.'), ('save_to_word.py', '.'), ('scraper.py', '.')]
+datas = []
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('selenium')

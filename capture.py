@@ -3,7 +3,6 @@ import base64
 from io import BytesIO
 from PIL import Image
 from selenium.webdriver.common.by import By
-import json
 import re
 
 
@@ -327,7 +326,6 @@ def capture(url, driver, output_dir="采集结果"):
 
     注意：当url为空时，直接使用当前driver所在的页面（已在详情页）
     """
-    import os
     # 1. 打开详情页（如果提供了url）
     if url:
         driver.get(url)
@@ -337,15 +335,6 @@ def capture(url, driver, output_dir="采集结果"):
         # 直接使用当前页面，等待渲染
         driver.implicitly_wait(5)
         time.sleep(1)
-
-    # 保存详情页HTML用于调试
-    try:
-        html_path = os.path.join(output_dir, "detail_page.html")
-        with open(html_path, "w", encoding="utf-8") as f:
-            f.write(driver.page_source)
-        print(f"详情页HTML已保存到: {html_path}")
-    except Exception as e:
-        print(f"保存详情页HTML失败: {e}")
 
     # 尝试切换到详情页iframe（排除导航iframe如treeframe）
     iframe_switched = False

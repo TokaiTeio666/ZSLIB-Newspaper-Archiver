@@ -1,15 +1,13 @@
-import time
 import re
 import io
 from docx import Document
 from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from selenium.webdriver.common.by import By
 from capture import capture, ocr_text
 import os
 
 
-def save_to_separate_word(name, info, detail_url, driver, row_index, output_dir, article_title=""):
+def save_to_separate_word(name, info, driver, output_dir, article_title=""):
     """
     针对单条记录生成高清裁剪图并保存为独立 Word 文档
     文档格式：
@@ -19,8 +17,6 @@ def save_to_separate_word(name, info, detail_url, driver, row_index, output_dir,
       文字内容（篇名、作者等）
       图片
       ——《xx日报》xx年xx月xx日，第xx版
-
-    注意：detail_url 参数已废弃，直接使用当前driver（已在详情页）
     """
     try:
         # 1. 调用 capture 函数（直接使用当前driver，不需要url）
@@ -124,29 +120,6 @@ def save_to_separate_word(name, info, detail_url, driver, row_index, output_dir,
         print(f"处理 {name} 时出错: {e}")
         import traceback
         traceback.print_exc()
-    finally:
-        # 确保回到搜索列表页
-        try:
-            driver.back()
-            time.sleep(2)
-        except Exception:
-            pass
-
-        # 如果回退不成功，尝试切换回原窗口
-        try:
-            if driver.current_window_handle != list_window:
-                driver.switch_to.window(list_window)
-                time.sleep(1)
-        except Exception:
-            pass
-
-        # 重新切入结果列表iframe（如果存在）
-        try:
-            target_frames = driver.find_elements(By.ID, "BriefList")
-            if len(target_frames) > 1:
-                driver.switch_to.frame(target_frames[1])
-        except Exception:
-            pass
 
 
 def parse_date_info(info, name="", article_title=""):

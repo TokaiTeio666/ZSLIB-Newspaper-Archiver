@@ -35,7 +35,7 @@ class NewspaperScraper:
             options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
             self.driver = webdriver.Edge(options=options)
-            self.driver.implicitly_wait(10)
+            self.driver.implicitly_wait(5)
             start_time = time.time()
 
             # ========== 第一步：打开报纸资源页 ==========
@@ -60,7 +60,7 @@ class NewspaperScraper:
             reclick_count = 0
 
             for i in range(60):
-                time.sleep(2)
+                time.sleep(1)
                 # 检查是否有数据库窗口
                 for handle in self.driver.window_handles:
                     if handle != main_window:
@@ -139,7 +139,7 @@ class NewspaperScraper:
             if login_popup_closed and not db_window:
                 self.log("等待数据库窗口打开...")
                 for i in range(20):
-                    time.sleep(2)
+                    time.sleep(1)
                     for handle in self.driver.window_handles:
                         try:
                             self.driver.switch_to.window(handle)
@@ -378,37 +378,6 @@ class NewspaperScraper:
         except Exception:
             pass
 
-        # 保存搜索结果页HTML用于调试
-        self._save_html("search_result.html")
-
-    def _try_switch_to_frame(self):
-        """尝试切换到包含搜索框的iframe"""
-        try:
-            iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
-            if not iframes:
-                return
-            self.log(f"检测到 {len(iframes)} 个iframe，尝试查找搜索框...")
-            for i, iframe in enumerate(iframes):
-                try:
-                    self.driver.switch_to.frame(iframe)
-                    # 快速检查是否有搜索框
-                    test = self.driver.find_elements(
-                        By.XPATH,
-                        "//input[@type='text' or @type='search' or not(@type)]"
-                    )
-                    if test:
-                        self.log(f"在第 {i+1} 个iframe中找到输入框")
-                        return
-                    self.driver.switch_to.default_content()
-                except Exception:
-                    try:
-                        self.driver.switch_to.default_content()
-                    except Exception:
-                        pass
-            self.log("未在iframe中找到搜索框，使用主页面")
-        except Exception:
-            pass
-
     def _find_search_input(self):
         """定位搜索输入框"""
         # 策略1：通过ID（近代报纸数据库的搜索框ID是 searchkeyword）
@@ -591,10 +560,6 @@ class NewspaperScraper:
             self.log(f"加载cookies失败: {e}")
             return False
 
-    def _load_all_cookies_for_current_domain(self):
-        """在当前域名下加载所有匹配的cookies并刷新"""
-        self._load_cookies()
-
     def _save_cookies(self):
         """保存所有窗口的cookies（遍历所有窗口，合并不同域名的cookies）"""
         try:
@@ -627,16 +592,6 @@ class NewspaperScraper:
             self.log(f"已保存 {len(all_cookies)} 个cookies（来自所有窗口）到: {self.cookies_path}")
         except Exception as e:
             self.log(f"保存cookies失败: {e}")
-
-    def _save_html(self, filename):
-        """保存当前页面HTML到文件，用于调试"""
-        try:
-            html_path = os.path.join(self.output_dir, filename)
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(self.driver.page_source)
-            self.log(f"页面HTML已保存到: {html_path}")
-        except Exception as e:
-            self.log(f"保存HTML失败: {e}")
 
     def _debug_page_info(self):
         """打印页面调试信息"""
@@ -727,7 +682,7 @@ class NewspaperScraper:
 
                             # 调用保存函数（直接使用当前driver，不需要url）
                             save_to_separate_word(
-                                name, info, "", self.driver, i, self.output_dir,
+                                name, info, self.driver, self.output_dir,
                                 article_title=title
                             )
 
@@ -908,36 +863,6 @@ class NewspaperScraper:
                     title = first_line.replace("茂名", "").strip()
                 elif len(first_line) > 1 and not first_line.endswith("报"):
                     title = first_line
-
-        return name, info, title
-
-    def _parse_record_text(self, text):
-        """从记录文本中解析报纸名、日期信息、篇名"""
-        name = ""
-        info = ""
-        title = ""
-
-        date_match = re.search(r"(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})", text)
-        if date_match:
-            year, month, day = date_match.group(1), date_match.group(2), date_match.group(3)
-            edition_match = re.search(r"第?(\d+)\s*版", text)
-            edition = edition_match.group(0) if edition_match else ""
-            info = f"{year}年{month}月{day}日 {edition}".strip()
-
-            date_pos = date_match.start()
-            before_date = text[:date_pos].strip()
-            before_date = re.sub(r"^[\d\s\.\-、]+", "", before_date)
-            if before_date:
-                name = before_date.split("\n")[0].strip()
-
-            after_date = text[date_match.end():].strip()
-            after_date = re.sub(r"^[\s\-\|：:]+", "", after_date)
-            if after_date:
-                title = after_date.split("\n")[0].strip()
-        else:
-            lines = text.split("\n")
-            if lines:
-                title = lines[0].strip()
 
         return name, info, title
 
