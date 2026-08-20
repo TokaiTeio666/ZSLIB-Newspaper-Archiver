@@ -7,7 +7,7 @@ from scraper import NewspaperScraper
 class App:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("ZSLIB 报纸采集工具")
+        self.root.title("ZSLIB 近代报纸采集工具")
         self.root.geometry("700x550")
         self.root.resizable(True, True)
         self.scraper = None
