@@ -1,0 +1,99 @@
+[
+  {
+    "domain": ".zslib.com.cn",
+    "expiry": 1787382059,
+    "httpOnly": true,
+    "name": "Zslib.Token",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "Value=77BC2F5D8F62512C"
+  },
+  {
+    "domain": ".zslib.com.cn",
+    "httpOnly": false,
+    "name": "HMACCOUNT",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "C91BE0CD5231CD0B"
+  },
+  {
+    "domain": ".zslib.com.cn",
+    "expiry": 1818874857,
+    "httpOnly": false,
+    "name": "Hm_lvt_447b6cfa3701ed5e6ec1fa34127e94ee",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "1787338858"
+  },
+  {
+    "domain": ".zslib.com.cn",
+    "httpOnly": false,
+    "name": "Hm_lpvt_447b6cfa3701ed5e6ec1fa34127e94ee",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "1787338858"
+  },
+  {
+    "domain": ".www.zslib.com.cn",
+    "expiry": 1787972458,
+    "httpOnly": true,
+    "name": "login_Yzm",
+    "path": "/",
+    "sameSite": "Strict",
+    "secure": true,
+    "value": "GQX9"
+  },
+  {
+    "domain": "www.zslib.com.cn",
+    "expiry": 1821898858,
+    "httpOnly": false,
+    "name": "TongJi_Zslib_Niamo",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "%257BUserID%253D%255Bobject%2520Object%255D%252CDate%253D20260822%257D"
+  },
+  {
+    "domain": "sso1.zslib.com.cn",
+    "expiry": 1787482870,
+    "httpOnly": false,
+    "name": "umscid",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "G66UP3JSGR6GKLJ3MJSGELJVGSSXKLLCG64DCLLDG3TDE3JUMZ4XKMBTMB"
+  },
+  {
+    "domain": "sso1.zslib.com.cn",
+    "expiry": 1787482870,
+    "httpOnly": true,
+    "name": "JSESSIONID-UMS",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "797e148e-9bbb-44ce-b741-c6d2e3f5e02a"
+  },
+  {
+    "domain": "sso1.zslib.com.cn",
+    "expiry": 1787346070,
+    "httpOnly": false,
+    "name": "clientId",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "CID852cd04dcfc270679452b44cd4eda112"
+  },
+  {
+    "domain": "sso1.zslib.com.cn",
+    "httpOnly": false,
+    "name": "vpn_bck$http$10.10.127.23$F7XGTZUTMF3HJ$JSESSIONID",
+    "path": "/",
+    "sameSite": "Lax",
+    "secure": false,
+    "value": "199DE2087F04FEEC876F31B28DE6C875E"
+  }
+]

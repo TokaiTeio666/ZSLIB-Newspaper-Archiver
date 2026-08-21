@@ -11,12 +11,14 @@ from save_to_word import save_to_separate_word
 
 
 class NewspaperScraper:
-    def __init__(self, search_str, output_dir="采集结果", log_callback=None):
+    def __init__(self, search_str, output_dir="采集结果", log_callback=None, headless=False):
         self.search_str = search_str
         self.output_dir = output_dir
         self.log = log_callback or print
         self.driver = None
         self._stop = False
+        self.headless = headless
+        self._implicit_wait = 2
         self.cookies_path = os.path.join(os.path.dirname(__file__), "cookies.json")
 
         if not os.path.exists(self.output_dir):
@@ -24,6 +26,16 @@ class NewspaperScraper:
 
     def stop(self):
         self._stop = True
+
+    def quit(self):
+        """立即停止并关闭浏览器驱动（可在任意线程调用，用于退出/停止时确保 driver.quit 生效）"""
+        self._stop = True
+        driver = self.driver
+        if driver is not None:
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
     def run(self):
         try:
@@ -33,9 +45,16 @@ class NewspaperScraper:
             options.set_capability("ms:loggingPrefs", {"performance": "ALL"})
             options.add_argument("--log-level=3")
             options.add_experimental_option("excludeSwitches", ["enable-logging"])
+            options.add_argument("--disable-notifications")
+            options.add_argument("--disable-popup-blocking")
+            options.page_load_strategy = "eager"
+            options.unhandled_prompt_behavior = "accept"
+            if self.headless:
+                options.add_argument("--headless=new")
+                options.add_argument("--window-size=1920,1080")
 
             self.driver = webdriver.Edge(options=options)
-            self.driver.implicitly_wait(5)
+            self.driver.implicitly_wait(self._implicit_wait)
             start_time = time.time()
 
             # ========== 第一步：打开报纸资源页 ==========
@@ -60,6 +79,8 @@ class NewspaperScraper:
             reclick_count = 0
 
             for i in range(60):
+                if self._stop:
+                    break
                 time.sleep(1)
                 # 检查是否有数据库窗口
                 for handle in self.driver.window_handles:
@@ -139,6 +160,8 @@ class NewspaperScraper:
             if login_popup_closed and not db_window:
                 self.log("等待数据库窗口打开...")
                 for i in range(20):
+                    if self._stop:
+                        break
                     time.sleep(1)
                     for handle in self.driver.window_handles:
                         try:
@@ -171,6 +194,9 @@ class NewspaperScraper:
                         self._save_cookies()
 
             time.sleep(3)
+
+            if self._stop:
+                return
 
             # ========== 第五步：搜索 ==========
             self.log("正在执行搜索...")
@@ -613,18 +639,114 @@ class NewspaperScraper:
         except Exception as e:
             self.log(f"打印调试信息失败: {e}")
 
+    def _dismiss_popup(self):
+        """自动关闭原生 alert/confirm/prompt 及常见 HTML 提示层，返回是否处理了弹窗"""
+        # 1. 原生 alert/confirm/prompt：switch_to.alert 不受隐式等待影响，秒返回
+        try:
+            alert = self.driver.switch_to.alert
+            txt = (alert.text or "").strip()
+            self.log(f"检测到浏览器弹窗，已自动处理: {txt[:80]}")
+            try:
+                alert.accept()
+            except Exception:
+                try:
+                    alert.dismiss()
+                except Exception:
+                    pass
+            return True
+        except Exception:
+            pass
+
+        # 2. layui 弹层（近代报纸数据库常用）：只点可见弹层内的确认按钮，避免误点页面普通按钮
+        try:
+            self.driver.implicitly_wait(0)
+            layers = self.driver.find_elements(By.XPATH, "//div[contains(@class,'layui-layer')]")
+            for layer in layers:
+                try:
+                    if not layer.is_displayed():
+                        continue
+                    btns = layer.find_elements(
+                        By.XPATH,
+                        ".//a[contains(@class,'layui-layer-btn0') or contains(@class,'layui-layer-btn1')]"
+                    )
+                    for btn in btns:
+                        if btn.is_displayed():
+                            self.driver.execute_script("arguments[0].click();", btn)
+                            self.log("已关闭页面提示弹窗")
+                            return True
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        finally:
+            self.driver.implicitly_wait(self._implicit_wait)
+        return False
+
+    def _open_detail(self, link, href, search_window, existing):
+        """打开详情页，尽量复用已有详情窗口（避免每次新开窗口抢焦点、也更省时）"""
+        is_real_url = bool(href) and href.startswith("http") and "javascript" not in href.lower()
+
+        # 已有详情窗口且拿到真实 URL：直接在详情窗口内跳转，不新开窗口
+        if existing and is_real_url:
+            try:
+                self.driver.switch_to.window(existing)
+                self.driver.get(href)
+                return existing
+            except Exception:
+                self.log("    复用详情窗口失败，改为新开窗口")
+                existing = None
+
+        # 点击链接（可能新开窗口，也可能在当前窗口跳转）
+        try:
+            self.driver.switch_to.window(search_window)
+        except Exception:
+            pass
+        handles_before = set(self.driver.window_handles)
+        try:
+            self.driver.execute_script("arguments[0].click();", link)
+        except Exception:
+            try:
+                link.click()
+            except Exception:
+                pass
+
+        new_window = None
+        for _ in range(15):
+            time.sleep(0.5)
+            new_handles = set(self.driver.window_handles) - handles_before
+            if new_handles:
+                new_window = new_handles.pop()
+                self.log("    检测到详情页新窗口")
+                break
+
+        if new_window:
+            # 若已有详情窗口且与新窗口不同，关闭旧的，避免窗口越积越多
+            if existing and existing != new_window:
+                try:
+                    self.driver.switch_to.window(existing)
+                    self.driver.close()
+                except Exception:
+                    pass
+            return new_window
+
+        if existing:
+            return existing
+        return None
+
     def _collect_results(self):
-        """遍历搜索结果页，采集每条记录（直接点击"阅读"链接）"""
+        """遍历搜索结果页，采集每条记录（复用详情窗口，减少新开窗口）"""
         page_num = 1
+        detail_window = None
         while not self._stop:
             self.log(f"正在处理第 {page_num} 页...")
-            time.sleep(2)
+            self._dismiss_popup()
+            time.sleep(1)
 
             # 解析当前页的记录信息
             records = self._parse_result_list()
             if not records:
                 self.log("当前页未解析到记录，等待后重试...")
-                time.sleep(3)
+                time.sleep(2)
                 records = self._parse_result_list()
 
             if not records:
@@ -639,69 +761,49 @@ class NewspaperScraper:
             for i, record in enumerate(records):
                 if self._stop:
                     break
+                self._dismiss_popup()
                 name = record.get("name", "")
                 info = record.get("info", "")
                 title = record.get("title", "")
                 self.log(f"  采集 [{i+1}/{len(records)}]: {name} {info} {title}")
 
                 try:
-                    # 确保在搜索结果窗口
+                    # 每次重新定位"阅读"链接，避免页面变动导致元素失效(stale)
                     self.driver.switch_to.window(search_window)
-                    time.sleep(0.5)
-
-                    # 重新找到所有"阅读"链接
                     read_links = self.driver.find_elements(
                         By.XPATH,
                         "//a[contains(text(), '阅读') and not(contains(text(), '整报'))]"
                     )
+                    if i >= len(read_links):
+                        self.log("    链接索引超出范围，跳过")
+                        continue
 
-                    if i < len(read_links):
-                        # 记录当前窗口数
-                        handles_before = set(self.driver.window_handles)
+                    link = read_links[i]
+                    href = link.get_attribute("href") or ""
+                    detail_window = self._open_detail(link, href, search_window, detail_window)
 
-                        # 点击第i个"阅读"链接
-                        self.driver.execute_script("arguments[0].click();", read_links[i])
-                        self.log(f"    已点击第 {i+1} 个'阅读'链接")
+                    if not detail_window:
+                        self.log("    未检测到详情页窗口，跳过")
+                        continue
 
-                        # 等待新窗口打开
-                        new_window = None
-                        for _ in range(15):
-                            time.sleep(1)
-                            current_handles = set(self.driver.window_handles)
-                            new_handles = current_handles - handles_before
-                            if new_handles:
-                                new_window = new_handles.pop()
-                                self.log("    检测到详情页新窗口")
-                                break
+                    self.driver.switch_to.window(detail_window)
+                    time.sleep(2.0)
+                    self.log(f"    详情页: {self.driver.title}")
 
-                        if new_window:
-                            # 切换到详情页窗口
-                            self.driver.switch_to.window(new_window)
-                            time.sleep(3)
-                            self.log(f"    详情页: {self.driver.title}")
-
-                            # 调用保存函数（直接使用当前driver，不需要url）
-                            save_to_separate_word(
-                                name, info, self.driver, self.output_dir,
-                                article_title=title
-                            )
-
-                            # 关闭详情页窗口
-                            try:
-                                self.driver.close()
-                            except Exception:
-                                pass
-
-                            # 回到搜索结果窗口
-                            self.driver.switch_to.window(search_window)
-                            time.sleep(1)
-                        else:
-                            self.log("    未检测到详情页新窗口，跳过")
-                    else:
-                        self.log(f"    链接索引超出范围，跳过")
+                    # 调用保存函数（直接使用当前driver，不需要url）
+                    save_to_separate_word(
+                        name, info, self.driver, self.output_dir,
+                        article_title=title
+                    )
                 except Exception as e:
                     self.log(f"    采集记录出错: {e}")
-                    # 确保回到搜索结果窗口
+                    self._dismiss_popup()
+                finally:
+                    # 确保回到搜索结果窗口（先退出 iframe 再切窗口）
+                    try:
+                        self.driver.switch_to.default_content()
+                    except Exception:
+                        pass
                     try:
                         self.driver.switch_to.window(search_window)
                     except Exception:
@@ -716,7 +818,7 @@ class NewspaperScraper:
                 break
 
             page_num += 1
-            time.sleep(3)
+            time.sleep(1.5)
 
     def _parse_result_list(self):
         """解析近代报纸数据库的搜索结果列表（只解析文本信息，不获取URL）"""

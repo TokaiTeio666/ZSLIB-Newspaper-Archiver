@@ -191,6 +191,9 @@ def extract_article_text(driver):
         "full_text": ""
     }
 
+    # 关闭隐式等待，避免对不存在元素的查找拖慢采集
+    driver.implicitly_wait(0)
+
     # 策略1：查找常见的文字信息容器
     selectors = [
         "//div[contains(@class,'article-info')]",
@@ -316,6 +319,7 @@ def extract_article_text(driver):
             text_info["content"] = "\n".join(content_lines)
 
     print(f"提取到文字信息: 标题='{text_info['title']}', 作者='{text_info['author']}', 内容长度={len(text_info['content'])}")
+    driver.implicitly_wait(2)
     return text_info
 
 
@@ -329,11 +333,11 @@ def capture(url, driver, output_dir="采集结果"):
     # 1. 打开详情页（如果提供了url）
     if url:
         driver.get(url)
-        driver.implicitly_wait(5)
+        driver.implicitly_wait(2)
         time.sleep(2)
     else:
         # 直接使用当前页面，等待渲染
-        driver.implicitly_wait(5)
+        driver.implicitly_wait(2)
         time.sleep(1)
 
     # 尝试切换到详情页iframe（排除导航iframe如treeframe）

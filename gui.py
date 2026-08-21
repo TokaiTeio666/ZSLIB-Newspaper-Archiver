@@ -37,6 +37,16 @@ class App:
             side=tk.LEFT
         )
 
+        # ---- 运行选项 ----
+        row_opts = ttk.Frame(main_frame)
+        row_opts.pack(fill=tk.X, pady=(0, 6))
+        self.headless_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            row_opts,
+            text="后台静默运行（无浏览器窗口；首次登录请先取消勾选）",
+            variable=self.headless_var,
+        ).pack(side=tk.LEFT)
+
         # ---- 控制按钮 ----
         row2 = ttk.Frame(main_frame)
         row2.pack(fill=tk.X, pady=(0, 6))
@@ -94,6 +104,7 @@ class App:
             search_str=search_str,
             output_dir=output_dir,
             log_callback=self._log,
+            headless=self.headless_var.get(),
         )
         thread = threading.Thread(target=self._run_scraper, daemon=True)
         thread.start()
@@ -111,7 +122,7 @@ class App:
 
     def _stop(self):
         if self.scraper:
-            self.scraper.stop()
+            self.scraper.quit()
             self._log("正在停止...")
 
     def run(self):
@@ -120,7 +131,7 @@ class App:
 
     def _on_close(self):
         if self.scraper:
-            self.scraper.stop()
+            self.scraper.quit()
         self.root.destroy()
 
 
